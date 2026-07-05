@@ -1,0 +1,3 @@
+# Fresh logs.db schema — no compatibility with Python llm's database
+
+llm-ts writes a new SQLite database designed around its own leaner domain (Conversations, Responses, Attachments, tool calls), not Python llm's sqlite-utils-managed schema. Write-compatibility was rejected because it would couple llm-ts to sqlite-utils' migration history and upstream schema churn, and would drag along concepts llm-ts dropped (fragments, embeddings). The old database stays where it is, queryable via the Python tool or plain SQL; a one-time import command is a fast-follow only if old history is actually missed.
