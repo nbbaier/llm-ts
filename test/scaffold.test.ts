@@ -1,8 +1,5 @@
 import { expect, test } from "bun:test";
-
-interface PackageJson {
-  version: string;
-}
+import type { PackageJson } from "../src/types";
 
 const packageJson = (await Bun.file("package.json").json()) as PackageJson;
 
