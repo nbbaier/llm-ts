@@ -1,20 +1,25 @@
 {
-  "name": "llm-ts",
-  "version": "0.1.0",
-  "type": "module",
-  "bin": {
-    "llm-ts": "./src/cli/main.ts",
-    "llx": "./src/cli/main.ts"
-  },
-  "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "bun test"
-  },
   "dependencies": {
     "citty": "^0.2.2"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.2",
     "@types/bun": "^1.3.14",
-    "typescript": "^5"
+    "typescript": "^5",
+    "ultracite": "7.9.2"
+  },
+  "name": "llm-ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "check": "ultracite check",
+    "fix": "ultracite fix",
+    "doctor": "ultracite doctor"
+  },
+  "type": "module",
+  "version": "0.1.0",
+  "bin": {
+    "llm-ts": "./src/cli/main.ts",
+    "llx": "./src/cli/main.ts"
   }
 }

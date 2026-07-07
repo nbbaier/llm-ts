@@ -6,14 +6,14 @@ type PackageJson = {
 };
 
 const packageJson = (await Bun.file(
-  new URL("../../package.json", import.meta.url),
+  new URL("../../package.json", import.meta.url)
 ).json()) as PackageJson;
 
 const main = defineCommand({
   meta: {
+    description: "LLM CLI on the Vercel AI SDK",
     name: "llx",
     version: packageJson.version,
-    description: "LLM CLI on the Vercel AI SDK",
   },
   run({ cmd }) {
     return showUsage(cmd);
