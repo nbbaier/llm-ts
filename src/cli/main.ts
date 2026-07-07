@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import { defineCommand, runMain, showUsage } from "citty";
 
-type PackageJson = {
+interface PackageJson {
   version: string;
-};
+}
 
 const packageJson = (await Bun.file(
   new URL("../../package.json", import.meta.url)
