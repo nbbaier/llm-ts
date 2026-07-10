@@ -1,1 +1,3 @@
-export interface PackageJson { version: string; }
+export interface PackageJson {
+  version: string;
+}
