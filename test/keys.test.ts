@@ -51,6 +51,7 @@ test("keys.json is written with mode 600", () => {
 
   setKey("anthropic", "sk-test-123", env);
 
+  // biome-ignore lint/suspicious/noBitwiseOperators: masking permission bits out of st_mode requires bitwise AND
   const mode = statSync(keysFilePath(env)).mode & FILE_MODE_MASK;
   expect(mode).toBe(OWNER_ONLY_RW);
 });
@@ -62,8 +63,26 @@ test("listKeyNames returns names only, never values", () => {
   setKey("openai", "sk-other-secret", env);
 
   const names = listKeyNames(env);
-  expect(names.toSorted()).toEqual(["anthropic", "openai"]);
+  expect(names.toSorted((a, b) => a.localeCompare(b))).toEqual([
+    "anthropic",
+    "openai",
+  ]);
   expect(JSON.stringify(names)).not.toContain("sk-");
+});
+
+test("keys set reads the value from piped stdin when omitted", () => {
+  const home = tempHome();
+
+  const result = Bun.spawnSync(
+    ["bun", "src/cli/main.ts", "keys", "set", "anthropic"],
+    {
+      env: { ...process.env, LLM_TS_HOME: home },
+      stdin: Buffer.from("sk-from-stdin\n"),
+    }
+  );
+
+  expect(result.exitCode).toBe(0);
+  expect(getKey("anthropic", { LLM_TS_HOME: home })).toBe("sk-from-stdin");
 });
 
 test("setKey merges into an existing keys.json", () => {
