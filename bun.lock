@@ -6,6 +6,7 @@
       "name": "llm-ts",
       "dependencies": {
         "citty": "^0.2.2",
+        "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
         "@biomejs/biome": "2.5.2",
