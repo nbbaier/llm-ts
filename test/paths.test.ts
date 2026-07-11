@@ -30,6 +30,20 @@ test("XDG vars are honored when LLM_TS_HOME is unset", () => {
   expect(dataDir(env)).toBe(join("/tmp/xdg-data", "llm-ts"));
 });
 
+test("empty XDG vars fall back to the home directory", () => {
+  const env = { XDG_CONFIG_HOME: "", XDG_DATA_HOME: "" };
+
+  expect(configDir(env)).toBe(join(homedir(), ".config", "llm-ts"));
+  expect(dataDir(env)).toBe(join(homedir(), ".local", "share", "llm-ts"));
+});
+
+test("relative XDG vars fall back to the home directory", () => {
+  const env = { XDG_CONFIG_HOME: "relative/config", XDG_DATA_HOME: "rel/data" };
+
+  expect(configDir(env)).toBe(join(homedir(), ".config", "llm-ts"));
+  expect(dataDir(env)).toBe(join(homedir(), ".local", "share", "llm-ts"));
+});
+
 test("defaults fall back to the home directory", () => {
   const env = {};
 

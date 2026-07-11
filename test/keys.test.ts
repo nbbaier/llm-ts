@@ -31,6 +31,17 @@ test("env var wins over file value", () => {
   expect(getKey("anthropic", env)).toBe("sk-from-env");
 });
 
+test("empty env var falls back to the stored file value", () => {
+  const env = {
+    ANTHROPIC_API_KEY: "",
+    LLM_TS_HOME: tempHome(),
+  };
+
+  setKey("anthropic", "sk-from-file", env);
+
+  expect(getKey("anthropic", env)).toBe("sk-from-file");
+});
+
 test("dashed names map to underscored env vars", () => {
   const env = {
     LLM_TS_HOME: tempHome(),

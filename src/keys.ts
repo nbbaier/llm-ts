@@ -55,7 +55,11 @@ export function getKey(
   env: Env = process.env
 ): string | undefined {
   assertValidKeyName(name);
-  return env[envVarName(name)] ?? readKeysFile(env)[name];
+  const envValue = env[envVarName(name)];
+  if (envValue) {
+    return envValue;
+  }
+  return readKeysFile(env)[name];
 }
 
 export function setKey(
