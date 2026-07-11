@@ -147,7 +147,7 @@ test("Model.prompt passes system and spread options to the underlying call", asy
   });
   await response.text();
 
-  const call = languageModel.doStreamCalls[0];
+  const [call] = languageModel.doStreamCalls;
   expect(call?.temperature).toBe(0.5);
   expect(call?.maxOutputTokens).toBe(100);
   expect(call?.prompt).toEqual([

@@ -4,9 +4,9 @@ import { Model } from "./model";
 import { configFilePath } from "./paths";
 
 export interface Registry {
-  getModel(idOrAlias?: string): Model;
-  listModels(): { id: string }[];
-  registerModel(model: Model): void;
+  getModel: (idOrAlias?: string) => Model;
+  listModels: () => { id: string }[];
+  registerModel: (model: Model) => void;
 }
 
 const ANTHROPIC_PREFIX = "anthropic:";

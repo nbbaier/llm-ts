@@ -39,26 +39,25 @@ export class Response implements AsyncIterable<string> {
   async *[Symbol.asyncIterator](): AsyncIterator<string> {
     this.ensureStarted();
     let index = 0;
-    while (true) {
+    while (index < this.deltas.length || !this.isDone()) {
       const delta = this.deltas[index];
-      if (delta !== undefined) {
+      if (delta === undefined) {
+        // biome-ignore lint/performance/noAwaitInLoops: waits for the producer to buffer the next delta; sequential by nature
+        await this.nextChange();
+      } else {
         index += 1;
         yield delta;
-      } else if (this.done) {
-        if (this.failed) {
-          this.rethrow();
-        }
-        return;
-      } else {
-        await this.nextChange();
       }
+    }
+    if (this.hasFailed()) {
+      this.rethrow();
     }
   }
 
   async text(): Promise<string> {
     this.ensureStarted();
     await this.drained;
-    if (this.failed) {
+    if (this.hasFailed()) {
       this.rethrow();
     }
     return this.deltas.join("");
@@ -68,6 +67,16 @@ export class Response implements AsyncIterable<string> {
     const result = this.ensureStarted();
     const { inputTokens, outputTokens } = await result.usage;
     return { inputTokens, outputTokens };
+  }
+
+  // done/failed are mutated by the concurrently running drain(); reading
+  // them through methods keeps static analysis from narrowing them.
+  private isDone(): boolean {
+    return this.done;
+  }
+
+  private hasFailed(): boolean {
+    return this.failed;
   }
 
   private ensureStarted(): StreamResult {
