@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getKey, listKeyNames, setKey } from "../src/keys";
@@ -79,6 +79,23 @@ test("keys.json is written with mode 600", () => {
   // biome-ignore lint/suspicious/noBitwiseOperators: masking permission bits out of st_mode requires bitwise AND
   const mode = statSync(keysFilePath(env)).mode & FILE_MODE_MASK;
   expect(mode).toBe(OWNER_ONLY_RW);
+});
+
+test("setKey atomically replaces an existing permissive keys file", () => {
+  const env = { LLM_TS_HOME: tempHome() };
+  const filePath = keysFilePath(env);
+  writeFileSync(filePath, '{ "anthropic": "sk-existing" }');
+  chmodSync(filePath, 0o644);
+  const originalInode = statSync(filePath).ino;
+
+  setKey("openai", "sk-new", env);
+
+  const replacement = statSync(filePath);
+  // biome-ignore lint/suspicious/noBitwiseOperators: masking permission bits out of st_mode requires bitwise AND
+  expect(replacement.mode & FILE_MODE_MASK).toBe(OWNER_ONLY_RW);
+  expect(replacement.ino).not.toBe(originalInode);
+  expect(getKey("anthropic", env)).toBe("sk-existing");
+  expect(getKey("openai", env)).toBe("sk-new");
 });
 
 test("listKeyNames returns names only, never values", () => {

@@ -1,8 +1,11 @@
+import { randomUUID } from "node:crypto";
 import {
   chmodSync,
   existsSync,
   mkdirSync,
   readFileSync,
+  renameSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { configDir, type Env, keysFilePath } from "./paths";
@@ -72,10 +75,17 @@ export function setKey(
   const keys = readKeysFile(env);
   keys[name] = value;
   const filePath = keysFilePath(env);
-  writeFileSync(filePath, `${JSON.stringify(keys, null, 2)}\n`, {
-    mode: OWNER_ONLY_RW,
-  });
-  chmodSync(filePath, OWNER_ONLY_RW);
+  const temporaryFilePath = `${filePath}.${randomUUID()}.tmp`;
+  try {
+    writeFileSync(temporaryFilePath, `${JSON.stringify(keys, null, 2)}\n`, {
+      flag: "wx",
+      mode: OWNER_ONLY_RW,
+    });
+    chmodSync(temporaryFilePath, OWNER_ONLY_RW);
+    renameSync(temporaryFilePath, filePath);
+  } finally {
+    rmSync(temporaryFilePath, { force: true });
+  }
 }
 
 export function listKeyNames(env: Env = process.env): string[] {
