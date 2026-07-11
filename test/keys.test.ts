@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, statSync } from "node:fs";
+import { mkdtempSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getKey, listKeyNames, setKey } from "../src/keys";
@@ -40,10 +40,24 @@ test("dashed names map to underscored env vars", () => {
   expect(getKey("my-provider", env)).toBe("sk-dashed");
 });
 
+test("setKey rejects names that cannot map safely to environment variables", () => {
+  const env = { LLM_TS_HOME: tempHome() };
+
+  expect(() => setKey("__proto__", "sk-test", env)).toThrow("Invalid key name");
+});
+
 test("getKey returns undefined for unknown names", () => {
   const env = { LLM_TS_HOME: tempHome() };
 
   expect(getKey("nonexistent", env)).toBeUndefined();
+});
+
+test("getKey rejects a keys file containing non-string values", () => {
+  const env = { LLM_TS_HOME: tempHome() };
+  const filePath = keysFilePath(env);
+  writeFileSync(filePath, '{ "anthropic": 42 }');
+
+  expect(() => getKey("anthropic", env)).toThrow(filePath);
 });
 
 test("keys.json is written with mode 600", () => {

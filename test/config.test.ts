@@ -22,10 +22,10 @@ test("valid JSONC with comments parses", () => {
   // default model for one-off prompts
   "defaultModel": "anthropic/claude-sonnet-5",
   "aliases": {
-    "sonnet": "anthropic/claude-sonnet-5", // trailing comment
+    "sonnet": "anthropic/claude-sonnet-5" // trailing comment
   },
   "plugins": ["some-plugin"],
-  "providers": { "anthropic": "@ai-sdk/anthropic" },
+  "providers": { "anthropic": "@ai-sdk/anthropic" }
 }
 `
   );
@@ -42,6 +42,22 @@ test("malformed JSONC throws with the file path in the message", () => {
   const home = tempHome();
   const filePath = join(home, "config.jsonc");
   writeFileSync(filePath, '{ "aliases": { broken ');
+
+  expect(() => loadConfig({ LLM_TS_HOME: home })).toThrow(filePath);
+});
+
+test("JSONC with trailing commas throws with the file path", () => {
+  const home = tempHome();
+  const filePath = join(home, "config.jsonc");
+  writeFileSync(filePath, '{ "plugins": [], }');
+
+  expect(() => loadConfig({ LLM_TS_HOME: home })).toThrow(filePath);
+});
+
+test("config with invalid field types throws with the file path", () => {
+  const home = tempHome();
+  const filePath = join(home, "config.jsonc");
+  writeFileSync(filePath, '{ "plugins": {} }');
 
   expect(() => loadConfig({ LLM_TS_HOME: home })).toThrow(filePath);
 });
