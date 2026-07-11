@@ -155,3 +155,21 @@ test("Model.prompt passes system and spread options to the underlying call", asy
     { content: [{ text: "hello", type: "text" }], role: "user" },
   ]);
 });
+
+test("Model.prompt options cannot override model, prompt, or system", async () => {
+  const languageModel = mockLanguageModel(["ok"]);
+  const model = new Model({ id: "mock:one", languageModel });
+
+  const response = model.prompt("hello", {
+    options: { model: "evil:model", prompt: "evil prompt", system: "evil" },
+    system: "be brief",
+  });
+  await response.text();
+
+  expect(languageModel.doStreamCalls.length).toBe(1);
+  const [call] = languageModel.doStreamCalls;
+  expect(call?.prompt).toEqual([
+    { content: "be brief", role: "system" },
+    { content: [{ text: "hello", type: "text" }], role: "user" },
+  ]);
+});

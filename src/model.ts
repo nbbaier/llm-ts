@@ -20,11 +20,14 @@ export class Model {
   }
 
   prompt(text: string, opts: PromptOptions = {}): Response {
+    // opts.options is spread first so arbitrary keys (e.g. -o prompt=...)
+    // can never override the model, prompt text, or explicit system prompt —
+    // Response metadata and future logs must match what is actually sent.
     const callArgs = {
+      ...opts.options,
       model: this.languageModel,
       prompt: text,
-      system: opts.system,
-      ...opts.options,
+      ...(opts.system === undefined ? {} : { system: opts.system }),
     } as StreamTextArgs;
     return new Response(() => streamText(callArgs), {
       modelId: this.id,
