@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# llm-ts orb resume — fast, idempotent checks run on every orb wake.
+# Dependencies are installed by .agents/setup; nothing to reinstall here.
+
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Verify Bun is still available (e.g. after an orb image update).
+if ! command -v bun >/dev/null 2>&1; then
+  echo "WARNING: bun not found in PATH — run .agents/setup to reinstall" >&2
+  exit 1
+fi
+
+# Confirm node_modules is intact; if not, setup will have to rerun.
+if [ ! -d "$repo_root/node_modules" ]; then
+  echo "WARNING: node_modules missing — run .agents/setup to reinstall" >&2
+  exit 1
+fi

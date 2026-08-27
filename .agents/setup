@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# llm-ts orb setup — Bun is preinstalled in the base orb image.
+# This script installs npm dependencies from the lockfile so a fresh orb
+# can build, typecheck, and test immediately.
+
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$repo_root"
+
+step() { printf '\n\033[1;34m[setup]\033[0m %s\n' "$*"; }
+
+# --- Verify Bun ---------------------------------------------------------------
+step "Verifying Bun runtime"
+if ! command -v bun >/dev/null 2>&1; then
+  echo "ERROR: bun not found in PATH" >&2
+  exit 1
+fi
+echo "bun $(bun --version) at $(command -v bun)"
+
+# --- Install dependencies -----------------------------------------------------
+step "Installing dependencies (bun install --frozen-lockfile)"
+bun install --frozen-lockfile
+
+# --- Smoke test ---------------------------------------------------------------
+step "Smoke test: typecheck + test"
+bun run typecheck
+bun test
+
+step "Setup complete"
