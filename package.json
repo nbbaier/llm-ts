@@ -1,4 +1,18 @@
 {
+  "name": "llm-ts",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "llm-ts": "./src/cli/main.ts",
+    "llx": "./src/cli/main.ts"
+  },
+  "scripts": {
+    "check": "ultracite check",
+    "doctor": "ultracite doctor",
+    "fix": "ultracite fix",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.44",
     "ai": "^7.0.83",
@@ -7,23 +21,9 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.2",
+    "@biomejs/biome": "2.5.10",
     "@types/bun": "^1.4.0",
     "typescript": "^7.0.2",
-    "ultracite": "7.9.2"
-  },
-  "name": "llm-ts",
-  "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "bun test",
-    "check": "ultracite check",
-    "fix": "ultracite fix",
-    "doctor": "ultracite doctor"
-  },
-  "type": "module",
-  "version": "0.1.0",
-  "bin": {
-    "llm-ts": "./src/cli/main.ts",
-    "llx": "./src/cli/main.ts"
+    "ultracite": "7.10.6"
   }
 }
