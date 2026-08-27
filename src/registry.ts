@@ -5,11 +5,21 @@ import { configFilePath } from "./paths";
 
 export interface Registry {
   getModel: (idOrAlias?: string) => Model;
-  listModels: () => { id: string }[];
+  listAliases: () => Record<string, string>;
+  listModels: () => ModelListing[];
   registerModel: (model: Model) => void;
 }
 
 const ANTHROPIC_PREFIX = "anthropic:";
+const KNOWN_PROVIDER_PREFIXES: ModelListing[] = [
+  { id: `${ANTHROPIC_PREFIX}<model-id>`, source: "provider-prefix" },
+];
+const MAX_SUGGESTIONS = 3;
+
+export interface ModelListing {
+  id: string;
+  source: "provider-prefix" | "registered";
+}
 
 export const MISSING_ANTHROPIC_KEY_MESSAGE =
   "No API key for 'anthropic'. Run `llx keys set anthropic` or set ANTHROPIC_API_KEY.";
@@ -19,6 +29,33 @@ export function createRegistry(cfg: {
   getKey: (name: string) => string | undefined;
 }): Registry {
   const registered = new Map<string, Model>();
+
+  function listModels(): ModelListing[] {
+    return [
+      ...KNOWN_PROVIDER_PREFIXES,
+      ...[...registered.keys()].map(
+        (id): ModelListing => ({ id, source: "registered" })
+      ),
+    ];
+  }
+
+  function unknownModelError(id: string): Error {
+    const query = id.toLowerCase();
+    const candidates = [
+      ...listModels().map((model) => model.id),
+      ...Object.keys(cfg.config.aliases),
+    ]
+      .filter((candidate) => candidate.toLowerCase().includes(query))
+      .slice(0, MAX_SUGGESTIONS);
+    if (candidates.length > 0) {
+      return new Error(
+        `Unknown model '${id}'. Did you mean: ${candidates.join(", ")}?`
+      );
+    }
+    return new Error(
+      `Unknown model '${id}'. Run 'llx models' to see what's available.`
+    );
+  }
 
   function buildAnthropicModel(id: string): Model {
     const apiKey = cfg.getKey("anthropic");
@@ -42,7 +79,7 @@ export function createRegistry(cfg: {
     if (id.startsWith(ANTHROPIC_PREFIX)) {
       return buildAnthropicModel(id);
     }
-    throw new Error(`Unknown model "${id}"`);
+    throw unknownModelError(id);
   }
 
   function resolve(idOrAlias: string): Model {
@@ -70,9 +107,10 @@ export function createRegistry(cfg: {
       }
       return resolve(fallback);
     },
-    listModels(): { id: string }[] {
-      return [...registered.keys()].map((id) => ({ id }));
+    listAliases(): Record<string, string> {
+      return { ...cfg.config.aliases };
     },
+    listModels,
     registerModel(model: Model): void {
       registered.set(model.id, model);
     },

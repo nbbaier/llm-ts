@@ -2,6 +2,7 @@
 import { defineCommand, runMain, showUsage } from "citty";
 import type { PackageJson } from "../types";
 import { keys } from "./commands/keys";
+import { models } from "./commands/models";
 import { prompt } from "./commands/prompt";
 
 const packageJson = (await Bun.file(
@@ -14,7 +15,7 @@ const meta = {
   version: packageJson.version,
 };
 
-const subCommands = { keys };
+const subCommands = { keys, models };
 
 const root = defineCommand({
   meta,
