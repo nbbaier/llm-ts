@@ -38,6 +38,14 @@ test("missing anthropic key exits non-zero with remediation guidance", () => {
   expect(result.stderr).toContain("llx keys set anthropic");
 });
 
+test("--no-log is accepted without changing missing-key handling", () => {
+  const result = runCli(["--no-log", "-m", "anthropic:claude-x", "hi"]);
+
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr).toContain("llx keys set anthropic");
+  expect(result.stderr).not.toContain("Unknown option");
+});
+
 test("no -m and no defaultModel exits non-zero naming -m", () => {
   const result = runCli(["hi"]);
 
