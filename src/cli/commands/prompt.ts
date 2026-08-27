@@ -2,6 +2,7 @@ import { defineCommand } from "citty";
 import { loadConfig } from "../../config";
 import { getKey } from "../../keys";
 import { createRegistry } from "../../registry";
+import { resolveSchema } from "../../schema";
 
 const NUMERIC_VALUE_PATTERN = /^-?\d+(?:\.\d+)?$/;
 
@@ -70,6 +71,10 @@ export const prompt = defineCommand({
       required: false,
       type: "positional",
     },
+    schema: {
+      description: "Inline JSON Schema or path to a .json, .ts, or .js schema",
+      type: "string",
+    },
     system: {
       alias: "s",
       description: "System prompt",
@@ -89,6 +94,9 @@ export const prompt = defineCommand({
     }
 
     const options = parseOptionFlags(collectOptionFlags(rawArgs));
+    const schema = args.schema
+      ? await resolveSchema(args.schema, process.cwd())
+      : undefined;
     const registry = createRegistry({
       config: loadConfig(),
       getKey: (name) => getKey(name),
@@ -96,6 +104,7 @@ export const prompt = defineCommand({
     const model = registry.getModel(args.model);
     const response = model.prompt(promptText, {
       options,
+      schema,
       system: args.system,
     });
 

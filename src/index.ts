@@ -8,3 +8,4 @@ export {
   type Registry,
 } from "./registry";
 export { Response, type ResponseUsage } from "./response";
+export { type ResolvedSchema, resolveSchema } from "./schema";

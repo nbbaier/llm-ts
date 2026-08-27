@@ -1,12 +1,14 @@
-import { type LanguageModel, streamText } from "ai";
+import { generateObject, type LanguageModel, streamText } from "ai";
 import { Response } from "./response";
+import type { ResolvedSchema } from "./schema";
 
 export interface PromptOptions {
   options?: Record<string, unknown>;
+  schema?: ResolvedSchema;
   system?: string;
 }
 
-type StreamTextArgs = Parameters<typeof streamText>[0];
+type GenerateObjectArgs = Parameters<typeof generateObject>[0];
 
 // A chat-capable model exposed to the user, wrapping an AI SDK
 // LanguageModel plus llm-ts metadata.
@@ -28,10 +30,22 @@ export class Model {
       model: this.languageModel,
       prompt: text,
       ...(opts.system === undefined ? {} : { system: opts.system }),
-    } as StreamTextArgs;
-    return new Response(() => streamText(callArgs), {
+    };
+    const meta = {
       modelId: this.id,
       prompt: text,
+    };
+
+    if (opts.schema) {
+      const objectArgs = {
+        ...callArgs,
+        schema: opts.schema.schema,
+      } as GenerateObjectArgs;
+      return new Response(() => generateObject(objectArgs), meta, "object");
+    }
+
+    return new Response(() => streamText(callArgs), {
+      ...meta,
     });
   }
 }

@@ -1,4 +1,4 @@
-import type { streamText } from "ai";
+import type { GenerateObjectResult, generateObject, streamText } from "ai";
 
 export interface ResponseUsage {
   inputTokens?: number;
@@ -11,6 +11,8 @@ interface ResponseMeta {
 }
 
 type StreamResult = ReturnType<typeof streamText>;
+type ObjectResult = GenerateObjectResult<unknown>;
+type ObjectResultPromise = ReturnType<typeof generateObject>;
 
 // The record of one prompt execution against a Model. Execution is lazy
 // (nothing runs until first consumption) and happens exactly once: deltas
@@ -21,8 +23,10 @@ export class Response implements AsyncIterable<string> {
   readonly modelId: string;
   readonly prompt: string;
 
-  private readonly startStream: () => StreamResult;
+  private readonly startStream: (() => StreamResult) | undefined;
+  private readonly startObject: (() => ObjectResultPromise) | undefined;
   private result: StreamResult | undefined;
+  private objectResult: Promise<ObjectResult> | undefined;
   private readonly deltas: string[] = [];
   private streamError: unknown;
   private failed = false;
@@ -30,13 +34,31 @@ export class Response implements AsyncIterable<string> {
   private drained: Promise<void> | undefined;
   private waiters: (() => void)[] = [];
 
-  constructor(start: () => StreamResult, meta: ResponseMeta) {
-    this.startStream = start;
+  constructor(start: () => StreamResult, meta: ResponseMeta);
+  constructor(
+    start: () => ObjectResultPromise,
+    meta: ResponseMeta,
+    mode: "object"
+  );
+  constructor(
+    start: (() => StreamResult) | (() => ObjectResultPromise),
+    meta: ResponseMeta,
+    mode: "text" | "object" = "text"
+  ) {
+    this.startStream =
+      mode === "text" ? (start as () => StreamResult) : undefined;
+    this.startObject =
+      mode === "object" ? (start as () => ObjectResultPromise) : undefined;
     this.modelId = meta.modelId;
     this.prompt = meta.prompt;
   }
 
   async *[Symbol.asyncIterator](): AsyncIterator<string> {
+    if (this.startObject) {
+      yield await this.text();
+      return;
+    }
+
     this.ensureStarted();
     let index = 0;
     while (index < this.deltas.length || !this.isDone()) {
@@ -55,6 +77,14 @@ export class Response implements AsyncIterable<string> {
   }
 
   async text(): Promise<string> {
+    if (this.startObject) {
+      const serialized = JSON.stringify(await this.json(), null, 2);
+      if (serialized === undefined) {
+        throw new Error("Structured output could not be serialized as JSON");
+      }
+      return serialized;
+    }
+
     this.ensureStarted();
     await this.drained;
     if (this.hasFailed()) {
@@ -63,7 +93,20 @@ export class Response implements AsyncIterable<string> {
     return this.deltas.join("");
   }
 
+  async json(): Promise<unknown> {
+    if (!this.startObject) {
+      throw new Error("json() requires a schema");
+    }
+    return (await this.ensureObjectStarted()).object;
+  }
+
   async usage(): Promise<ResponseUsage> {
+    if (this.startObject) {
+      const { inputTokens, outputTokens } = (await this.ensureObjectStarted())
+        .usage;
+      return { inputTokens, outputTokens };
+    }
+
     const result = this.ensureStarted();
     const { inputTokens, outputTokens } = await result.usage;
     return { inputTokens, outputTokens };
@@ -81,10 +124,24 @@ export class Response implements AsyncIterable<string> {
 
   private ensureStarted(): StreamResult {
     if (!this.result) {
+      if (!this.startStream) {
+        throw new Error("Response is not in text mode");
+      }
       this.result = this.startStream();
       this.drained = this.drain(this.result);
     }
     return this.result;
+  }
+
+  private ensureObjectStarted(): Promise<ObjectResult> {
+    if (!this.objectResult) {
+      const start = this.startObject;
+      if (!start) {
+        throw new Error("Response is not in object mode");
+      }
+      this.objectResult = Promise.resolve().then(start);
+    }
+    return this.objectResult;
   }
 
   private async drain(result: StreamResult): Promise<void> {
