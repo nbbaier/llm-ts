@@ -227,3 +227,11 @@ test("Model.prompt options cannot override model, prompt, or system", async () =
     { content: [{ text: "hello", type: "text" }], role: "user" },
   ]);
 });
+
+test("unknown model suggestions omit the provider-prefix placeholder", () => {
+  const registry = createRegistry({ config: baseConfig(), getKey: noKey });
+
+  expect(() => registry.getModel("model")).toThrow(
+    "Unknown model 'model'. Run 'llx models' to see what's available."
+  );
+});

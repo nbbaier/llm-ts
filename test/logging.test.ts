@@ -7,6 +7,7 @@ import { MockLanguageModelV4, simulateReadableStream } from "ai/test";
 import { openDb } from "../src/db";
 import { createConversation, logResponse } from "../src/logging";
 import { Model } from "../src/model";
+import { resolveSchema } from "../src/schema";
 
 const tempDirectories: string[] = [];
 
@@ -273,4 +274,43 @@ test("a closed database warns once without losing response text", async () => {
     "failed to log response"
   );
   warning.mockRestore();
+});
+
+test("structured output responses are logged as pretty JSON", async () => {
+  const db = tempDb();
+  const languageModel = new MockLanguageModelV4({
+    doGenerate: {
+      content: [{ text: JSON.stringify({ name: "Pelly" }), type: "text" }],
+      finishReason: { raw: undefined, unified: "stop" },
+      usage: {
+        inputTokens: {
+          cacheRead: undefined,
+          cacheWrite: undefined,
+          noCache: undefined,
+          total: 3,
+        },
+        outputTokens: { reasoning: undefined, text: undefined, total: 2 },
+      },
+      warnings: [],
+    },
+  });
+  const model = new Model({ id: "mock:test", languageModel });
+  const schema = await resolveSchema(
+    "schema.json",
+    join(import.meta.dir, "fixtures")
+  );
+
+  const prettyJson = '{\n  "name": "Pelly"\n}';
+  expect(await model.prompt("extract", { db, schema }).text()).toBe(prettyJson);
+
+  const logged = db.query("SELECT * FROM responses").get() as Record<
+    string,
+    unknown
+  >;
+  expect(logged.response).toBe(prettyJson);
+  expect(JSON.parse(logged.usage as string)).toEqual({
+    inputTokens: 3,
+    outputTokens: 2,
+  });
+  db.close();
 });

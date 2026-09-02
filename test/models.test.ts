@@ -64,3 +64,12 @@ test("models aliases shows aliases and the config editing hint", () => {
   expect(result.stdout).toContain("Edit aliases in config.jsonc.");
   expect(result.stdout).not.toContain("anthropic:<model-id>");
 });
+
+test("models aliases ignores flags placed before the subcommand", () => {
+  const result = runModels(["--json", "aliases"]);
+
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain("Edit aliases in config.jsonc.");
+  expect(result.stdout).not.toContain("Registered models:");
+  expect(result.stdout).not.toContain('"models"');
+});

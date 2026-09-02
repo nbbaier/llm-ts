@@ -118,9 +118,13 @@ export const prompt = defineCommand({
       system: args.system,
     });
 
-    for await (const delta of response) {
-      process.stdout.write(delta);
+    try {
+      for await (const delta of response) {
+        process.stdout.write(delta);
+      }
+      process.stdout.write("\n");
+    } finally {
+      db?.close();
     }
-    process.stdout.write("\n");
   },
 });

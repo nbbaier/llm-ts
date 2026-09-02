@@ -76,7 +76,9 @@ export const models = defineCommand({
     name: "models",
   },
   run({ args, rawArgs }) {
-    if (rawArgs[0] === "aliases") {
+    // citty runs the parent command after a subcommand, so skip the model
+    // listing whenever the aliases subcommand was dispatched.
+    if (rawArgs.includes("aliases")) {
       return;
     }
     const config = loadConfig();

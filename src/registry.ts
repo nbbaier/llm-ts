@@ -41,8 +41,10 @@ export function createRegistry(cfg: {
 
   function unknownModelError(id: string): Error {
     const query = id.toLowerCase();
+    // Provider prefixes are placeholders (anthropic:<model-id>), not ids a
+    // user could have meant.
     const candidates = [
-      ...listModels().map((model) => model.id),
+      ...registered.keys(),
       ...Object.keys(cfg.config.aliases),
     ]
       .filter((candidate) => candidate.toLowerCase().includes(query))

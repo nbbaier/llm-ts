@@ -2,8 +2,46 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { jsonSchema } from "ai";
 import Ajv from "ajv";
+import Ajv2019 from "ajv/dist/2019";
+import Ajv2020 from "ajv/dist/2020";
 
-const ajv = new Ajv({ addUsedSchema: false, allErrors: true });
+// Unknown keywords are tolerated (strict: false) because schemas are also
+// forwarded to providers, which accept vendor extensions Ajv does not know.
+const AJV_OPTIONS = { addUsedSchema: false, allErrors: true, strict: false };
+
+// Each Ajv instance understands a single draft, so the validator is chosen
+// from the schema's $schema declaration (draft-07 when absent).
+const validators: Record<string, Ajv | undefined> = {};
+
+function ajvFor(schema: unknown): Ajv {
+  const declared =
+    typeof schema === "object" &&
+    schema !== null &&
+    "$schema" in schema &&
+    typeof schema.$schema === "string"
+      ? schema.$schema
+      : "";
+  let draft = "draft-07";
+  if (declared.includes("2020-12")) {
+    draft = "2020-12";
+  } else if (declared.includes("2019-09")) {
+    draft = "2019-09";
+  }
+  const existing = validators[draft];
+  if (existing) {
+    return existing;
+  }
+  let created: Ajv;
+  if (draft === "2020-12") {
+    created = new Ajv2020(AJV_OPTIONS);
+  } else if (draft === "2019-09") {
+    created = new Ajv2019(AJV_OPTIONS);
+  } else {
+    created = new Ajv(AJV_OPTIONS);
+  }
+  validators[draft] = created;
+  return created;
+}
 
 interface ZodLikeSchema {
   parse: (value: unknown) => unknown;
@@ -27,6 +65,7 @@ function parseJsonSchema(contents: string, input: string): ResolvedSchema {
     );
   }
 
+  const ajv = ajvFor(parsed);
   let validate: ReturnType<typeof ajv.compile>;
   try {
     validate = ajv.compile(parsed);

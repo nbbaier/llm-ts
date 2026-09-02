@@ -125,3 +125,32 @@ test("JSON Schema rejects a mismatching generated object", async () => {
   await expect(response.json()).rejects.toThrow();
   expect(languageModel.doGenerateCalls).toHaveLength(1);
 });
+
+test("resolves a draft 2020-12 JSON Schema", async () => {
+  const resolved = await resolveSchema(
+    JSON.stringify({
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      properties: { name: { type: "string" } },
+      required: ["name"],
+      type: "object",
+    })
+  );
+
+  expect(resolved.kind).toBe("json");
+  if (resolved.kind === "json") {
+    expect(resolved.schema.validate?.({ name: "Pelly" })).toMatchObject({
+      success: true,
+    });
+    expect(resolved.schema.validate?.({ name: 42 })).toMatchObject({
+      success: false,
+    });
+  }
+});
+
+test("tolerates keywords Ajv does not know", async () => {
+  const resolved = await resolveSchema(
+    JSON.stringify({ example: { name: "Pelly" }, type: "object" })
+  );
+
+  expect(resolved.kind).toBe("json");
+});
