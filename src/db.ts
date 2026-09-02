@@ -29,6 +29,7 @@ export function openDb(env: Env = process.env): Database {
   const path = dbPath(env);
   mkdirSync(dirname(path), { recursive: true });
   const db = new Database(path);
+  db.exec("PRAGMA foreign_keys = ON");
   const version = db
     .query<{ user_version: number }, []>("PRAGMA user_version")
     .get()?.user_version;

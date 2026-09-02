@@ -101,7 +101,7 @@ export const prompt = defineCommand({
       getKey: (name) => getKey(name),
     });
     const model = registry.getModel(args.model);
-    const db = openDb();
+    const db = args.log ? openDb() : undefined;
     const response = model.prompt(promptText, {
       db,
       log: args.log,

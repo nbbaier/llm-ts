@@ -35,6 +35,9 @@ test("openDb creates and migrates a fresh database", () => {
     db.query<{ user_version: number }, []>("PRAGMA user_version").get()
   ).toEqual({ user_version: 1 });
   expect(
+    db.query<{ foreign_keys: number }, []>("PRAGMA foreign_keys").get()
+  ).toEqual({ foreign_keys: 1 });
+  expect(
     db
       .query<{ name: string }, []>(
         "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_responses_conversation'"

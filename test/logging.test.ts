@@ -106,6 +106,27 @@ test("createConversation and logResponse persist every field", () => {
   db.close();
 });
 
+test("logResponse rejects a missing conversation", () => {
+  const db = tempDb();
+
+  expect(() =>
+    logResponse(db, {
+      conversationId: "missing",
+      durationMs: 1,
+      id: "response-id",
+      model: "mock:test",
+      prompt: "Hello",
+      responseText: "Hi",
+    })
+  ).toThrow("FOREIGN KEY constraint failed");
+  expect(
+    db
+      .query<{ count: number }, []>("SELECT count(*) AS count FROM responses")
+      .get()
+  ).toEqual({ count: 0 });
+  db.close();
+});
+
 test("Model.prompt logs once by default when the response completes", async () => {
   const db = tempDb();
   const response = mockModel().prompt("Say hello", {
@@ -211,6 +232,31 @@ test("a supplied conversation id is reused", async () => {
       )
       .get()
   ).toEqual({ count: 1 });
+  db.close();
+});
+
+test("one-shot logging rolls back its conversation when the response insert fails", async () => {
+  const db = tempDb();
+  db.exec(`CREATE TRIGGER reject_response
+    BEFORE INSERT ON responses
+    BEGIN
+      SELECT RAISE(ABORT, 'response rejected');
+    END`);
+  const warning = spyOn(process.stderr, "write").mockImplementation(() => true);
+
+  expect(await mockModel().prompt("Still return this", { db }).text()).toBe(
+    "Hello world"
+  );
+
+  expect(warning).toHaveBeenCalledTimes(1);
+  expect(
+    db
+      .query<{ count: number }, []>(
+        "SELECT count(*) AS count FROM conversations"
+      )
+      .get()
+  ).toEqual({ count: 0 });
+  warning.mockRestore();
   db.close();
 });
 

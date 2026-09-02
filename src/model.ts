@@ -42,17 +42,28 @@ export class Model {
             responseText: string;
             usage: { inputTokens?: number; outputTokens?: number };
           }) => {
-            const targetConversationId =
-              conversationId ?? createConversation(db, { model: this.id });
-            logResponse(db, {
+            const row = {
               ...completion,
-              conversationId: targetConversationId,
               id: Bun.randomUUIDv7(),
               model: this.id,
               options,
               prompt: text,
               system,
+            };
+            if (conversationId) {
+              logResponse(db, { ...row, conversationId });
+              return;
+            }
+            const logOneShot = db.transaction(() => {
+              const newConversationId = createConversation(db, {
+                model: this.id,
+              });
+              logResponse(db, {
+                ...row,
+                conversationId: newConversationId,
+              });
             });
+            logOneShot();
           }
         : undefined;
     return new Response(() => streamText(callArgs), {
