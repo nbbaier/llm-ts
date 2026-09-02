@@ -54,6 +54,14 @@ test("no -m and no defaultModel exits non-zero naming -m", () => {
   expect(result.stderr).toContain("defaultModel");
 });
 
+test("malformed inline schema exits non-zero with a friendly error", () => {
+  const result = runCli(["--schema", '{"type":}', "extract"]);
+
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr).toContain('Could not parse schema "{\\"type\\":}":');
+  expect(result.stderr).not.toContain("at resolveSchema");
+});
+
 test("parseOptionFlags coerces numeric values to numbers", () => {
   expect(
     parseOptionFlags(["temperature=0.5", "maxOutputTokens=100", "stop=END"])

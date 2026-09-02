@@ -1,17 +1,20 @@
+import { generateObject, type LanguageModel, streamText } from "ai";
 import type { Database } from "bun:sqlite";
 import { type LanguageModel, streamText } from "ai";
 import { createConversation, logResponse } from "./logging";
 import { Response } from "./response";
+import type { ResolvedSchema } from "./schema";
 
 export interface PromptOptions {
   conversationId?: string;
   db?: Database;
   log?: boolean;
   options?: Record<string, unknown>;
+  schema?: ResolvedSchema;
   system?: string;
 }
 
-type StreamTextArgs = Parameters<typeof streamText>[0];
+type GenerateObjectArgs = Parameters<typeof generateObject>[0];
 
 // A chat-capable model exposed to the user, wrapping an AI SDK
 // LanguageModel plus llm-ts metadata.
@@ -33,6 +36,9 @@ export class Model {
       ...options,
       model: this.languageModel,
       prompt: text,
+      ...(opts.system === undefined ? {} : { system: opts.system }),
+    };
+    const meta = {
       ...(system === undefined ? {} : { system }),
     } as StreamTextArgs;
     const onComplete =
@@ -70,6 +76,18 @@ export class Model {
       modelId: this.id,
       onComplete,
       prompt: text,
+    };
+
+    if (opts.schema) {
+      const objectArgs = {
+        ...callArgs,
+        schema: opts.schema.schema,
+      } as GenerateObjectArgs;
+      return new Response(() => generateObject(objectArgs), meta, "object");
+    }
+
+    return new Response(() => streamText(callArgs), {
+      ...meta,
     });
   }
 }
