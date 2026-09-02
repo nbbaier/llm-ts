@@ -1,6 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { jsonSchema } from "ai";
+import Ajv from "ajv";
+
+const ajv = new Ajv({ addUsedSchema: false, allErrors: true });
 
 interface ZodLikeSchema {
   parse: (value: unknown) => unknown;
@@ -11,9 +14,9 @@ export type ResolvedSchema =
   | { kind: "zod"; schema: ZodLikeSchema };
 
 function parseJsonSchema(contents: string, input: string): ResolvedSchema {
+  let parsed: Parameters<typeof jsonSchema>[0];
   try {
-    const parsed = JSON.parse(contents) as Parameters<typeof jsonSchema>[0];
-    return { kind: "json", schema: jsonSchema(parsed) };
+    parsed = JSON.parse(contents) as Parameters<typeof jsonSchema>[0];
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     throw new Error(
@@ -23,6 +26,34 @@ function parseJsonSchema(contents: string, input: string): ResolvedSchema {
       }
     );
   }
+
+  let validate: ReturnType<typeof ajv.compile>;
+  try {
+    validate = ajv.compile(parsed);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`Invalid JSON Schema ${JSON.stringify(input)}: ${reason}`, {
+      cause: error,
+    });
+  }
+
+  return {
+    kind: "json",
+    schema: jsonSchema(parsed, {
+      validate: (value) => {
+        if (validate(value)) {
+          return { success: true, value };
+        }
+        const reason = ajv.errorsText(validate.errors, { separator: "; " });
+        return {
+          error: new Error(
+            `Generated object does not match schema ${JSON.stringify(input)}: ${reason}`
+          ),
+          success: false,
+        };
+      },
+    }),
+  };
 }
 
 function isZodLikeSchema(value: unknown): value is ZodLikeSchema {

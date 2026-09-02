@@ -113,3 +113,15 @@ test("zod schema rejects a mismatching generated object", async () => {
   await expect(response.json()).rejects.toThrow();
   expect(languageModel.doGenerateCalls).toHaveLength(1);
 });
+
+test("JSON Schema rejects a mismatching generated object", async () => {
+  const languageModel = new MockLanguageModelV4({
+    doGenerate: generateResult({ name: 42 }),
+  });
+  const model = new Model({ id: "mock:test", languageModel });
+  const schema = await resolveSchema("schema.json", FIXTURES);
+  const response = model.prompt("extract a name", { schema });
+
+  await expect(response.json()).rejects.toThrow();
+  expect(languageModel.doGenerateCalls).toHaveLength(1);
+});
