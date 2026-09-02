@@ -32,7 +32,7 @@ export function createRegistry(cfg: {
 
   function listModels(): ModelListing[] {
     return [
-      ...KNOWN_PROVIDER_PREFIXES,
+      ...KNOWN_PROVIDER_PREFIXES.map((listing) => ({ ...listing })),
       ...[...registered.keys()].map(
         (id): ModelListing => ({ id, source: "registered" })
       ),

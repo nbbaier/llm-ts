@@ -67,6 +67,23 @@ test("listModels lists registered model ids and known provider prefixes", () => 
   ]);
 });
 
+test("listModels returns fresh provider-prefix listings", () => {
+  const registry = createRegistry({ config: baseConfig(), getKey: noKey });
+  const [providerPrefix] = registry.listModels();
+  if (!providerPrefix) {
+    throw new Error("Expected a provider-prefix listing");
+  }
+
+  providerPrefix.id = "modified";
+
+  const otherRegistry = createRegistry({
+    config: baseConfig(),
+    getKey: noKey,
+  });
+  expect(registry.listModels()[0]?.id).toBe("anthropic:<model-id>");
+  expect(otherRegistry.listModels()[0]?.id).toBe("anthropic:<model-id>");
+});
+
 test("listAliases returns aliases from config", () => {
   const aliases = { fast: "mock:swift", smart: "mock:pelican" };
   const registry = createRegistry({
