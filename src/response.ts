@@ -11,7 +11,7 @@ interface ResponseMeta {
   prompt: string;
 }
 
-interface ResponseCompletion {
+export interface ResponseCompletion {
   durationMs: number;
   responseText: string;
   usage: ResponseUsage;
@@ -30,9 +30,11 @@ export class Response implements AsyncIterable<string> {
   readonly modelId: string;
   readonly prompt: string;
 
-  private readonly startStream: () => StreamResult;
+  private readonly startStream: (() => StreamResult) | undefined;
+  private readonly startObject: (() => ObjectResultPromise) | undefined;
   private readonly onComplete: ResponseMeta["onComplete"];
   private result: StreamResult | undefined;
+  private objectResult: Promise<ObjectResult> | undefined;
   private startedAt: number | undefined;
   private readonly deltas: string[] = [];
   private streamError: unknown;
@@ -135,6 +137,7 @@ export class Response implements AsyncIterable<string> {
       if (!this.startStream) {
         throw new Error("Response is not in text mode");
       }
+      this.startedAt = Date.now();
       this.result = this.startStream();
       this.drained = this.drain(this.result);
     }
@@ -147,7 +150,13 @@ export class Response implements AsyncIterable<string> {
       if (!start) {
         throw new Error("Response is not in object mode");
       }
-      this.objectResult = Promise.resolve().then(start);
+      this.startedAt = Date.now();
+      this.objectResult = Promise.resolve()
+        .then(start)
+        .then(async (result) => {
+          await this.completeObject(result);
+          return result;
+        });
     }
     return this.objectResult;
   }
@@ -172,13 +181,34 @@ export class Response implements AsyncIterable<string> {
     if (!this.onComplete) {
       return;
     }
+    const { inputTokens, outputTokens } = await result.usage;
+    await this.runOnComplete(this.deltas.join(""), {
+      inputTokens,
+      outputTokens,
+    });
+  }
 
+  private async completeObject(result: ObjectResult): Promise<void> {
+    if (!this.onComplete) {
+      return;
+    }
+    const { inputTokens, outputTokens } = result.usage;
+    await this.runOnComplete(JSON.stringify(result.object, null, 2) ?? "", {
+      inputTokens,
+      outputTokens,
+    });
+  }
+
+  // Logging failures must never break the response the caller is consuming.
+  private async runOnComplete(
+    responseText: string,
+    usage: ResponseUsage
+  ): Promise<void> {
     try {
-      const { inputTokens, outputTokens } = await result.usage;
-      await this.onComplete({
+      await this.onComplete?.({
         durationMs: Date.now() - (this.startedAt ?? Date.now()),
-        responseText: this.deltas.join(""),
-        usage: { inputTokens, outputTokens },
+        responseText,
+        usage,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

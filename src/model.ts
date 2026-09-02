@@ -1,8 +1,7 @@
-import { generateObject, type LanguageModel, streamText } from "ai";
 import type { Database } from "bun:sqlite";
-import { type LanguageModel, streamText } from "ai";
+import { generateObject, type LanguageModel, streamText } from "ai";
 import { createConversation, logResponse } from "./logging";
-import { Response } from "./response";
+import { Response, type ResponseCompletion } from "./response";
 import type { ResolvedSchema } from "./schema";
 
 export interface PromptOptions {
@@ -14,6 +13,7 @@ export interface PromptOptions {
   system?: string;
 }
 
+type StreamTextArgs = Parameters<typeof streamText>[0];
 type GenerateObjectArgs = Parameters<typeof generateObject>[0];
 
 // A chat-capable model exposed to the user, wrapping an AI SDK
@@ -28,26 +28,19 @@ export class Model {
   }
 
   prompt(text: string, opts: PromptOptions = {}): Response {
-    const { conversationId, db, log = true, options, system } = opts;
+    const { conversationId, db, log = true, options, schema, system } = opts;
     // opts.options is spread first so arbitrary keys (e.g. -o prompt=...)
     // can never override the model, prompt text, or explicit system prompt —
-    // Response metadata and future logs must match what is actually sent.
+    // Response metadata and logs must match what is actually sent.
     const callArgs = {
       ...options,
       model: this.languageModel,
       prompt: text,
-      ...(opts.system === undefined ? {} : { system: opts.system }),
-    };
-    const meta = {
       ...(system === undefined ? {} : { system }),
-    } as StreamTextArgs;
+    };
     const onComplete =
       log && db
-        ? (completion: {
-            durationMs: number;
-            responseText: string;
-            usage: { inputTokens?: number; outputTokens?: number };
-          }) => {
+        ? (completion: ResponseCompletion) => {
             const row = {
               ...completion,
               id: Bun.randomUUIDv7(),
@@ -72,22 +65,16 @@ export class Model {
             logOneShot();
           }
         : undefined;
-    return new Response(() => streamText(callArgs), {
-      modelId: this.id,
-      onComplete,
-      prompt: text,
-    };
+    const meta = { modelId: this.id, onComplete, prompt: text };
 
-    if (opts.schema) {
+    if (schema) {
       const objectArgs = {
         ...callArgs,
-        schema: opts.schema.schema,
+        schema: schema.schema,
       } as GenerateObjectArgs;
       return new Response(() => generateObject(objectArgs), meta, "object");
     }
 
-    return new Response(() => streamText(callArgs), {
-      ...meta,
-    });
+    return new Response(() => streamText(callArgs as StreamTextArgs), meta);
   }
 }
