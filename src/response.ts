@@ -7,7 +7,14 @@ export interface ResponseUsage {
 
 interface ResponseMeta {
   modelId: string;
+  onComplete?: (completion: ResponseCompletion) => void | Promise<void>;
   prompt: string;
+}
+
+interface ResponseCompletion {
+  durationMs: number;
+  responseText: string;
+  usage: ResponseUsage;
 }
 
 type StreamResult = ReturnType<typeof streamText>;
@@ -23,10 +30,10 @@ export class Response implements AsyncIterable<string> {
   readonly modelId: string;
   readonly prompt: string;
 
-  private readonly startStream: (() => StreamResult) | undefined;
-  private readonly startObject: (() => ObjectResultPromise) | undefined;
+  private readonly startStream: () => StreamResult;
+  private readonly onComplete: ResponseMeta["onComplete"];
   private result: StreamResult | undefined;
-  private objectResult: Promise<ObjectResult> | undefined;
+  private startedAt: number | undefined;
   private readonly deltas: string[] = [];
   private streamError: unknown;
   private failed = false;
@@ -50,6 +57,7 @@ export class Response implements AsyncIterable<string> {
     this.startObject =
       mode === "object" ? (start as () => ObjectResultPromise) : undefined;
     this.modelId = meta.modelId;
+    this.onComplete = meta.onComplete;
     this.prompt = meta.prompt;
   }
 
@@ -150,12 +158,31 @@ export class Response implements AsyncIterable<string> {
         this.deltas.push(delta);
         this.notify();
       }
+      await this.complete(result);
     } catch (error) {
       this.failed = true;
       this.streamError = error;
     } finally {
       this.done = true;
       this.notify();
+    }
+  }
+
+  private async complete(result: StreamResult): Promise<void> {
+    if (!this.onComplete) {
+      return;
+    }
+
+    try {
+      const { inputTokens, outputTokens } = await result.usage;
+      await this.onComplete({
+        durationMs: Date.now() - (this.startedAt ?? Date.now()),
+        responseText: this.deltas.join(""),
+        usage: { inputTokens, outputTokens },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(`Warning: failed to log response: ${message}\n`);
     }
   }
 

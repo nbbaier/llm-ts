@@ -1,5 +1,6 @@
 import { defineCommand } from "citty";
 import { loadConfig } from "../../config";
+import { openDb } from "../../db";
 import { getKey } from "../../keys";
 import { createRegistry } from "../../registry";
 import { resolveSchema } from "../../schema";
@@ -56,6 +57,12 @@ async function resolvePromptText(
 
 export const prompt = defineCommand({
   args: {
+    log: {
+      default: true,
+      description: "Log the response",
+      negativeDescription: "Do not log the response",
+      type: "boolean",
+    },
     model: {
       alias: "m",
       description: "Model id or alias (e.g. anthropic:claude-sonnet-4-5)",
@@ -102,7 +109,10 @@ export const prompt = defineCommand({
       getKey: (name) => getKey(name),
     });
     const model = registry.getModel(args.model);
+    const db = args.log ? openDb() : undefined;
     const response = model.prompt(promptText, {
+      db,
+      log: args.log,
       options,
       schema,
       system: args.system,
