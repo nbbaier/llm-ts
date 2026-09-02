@@ -54,16 +54,44 @@ test("registerModel then getModel round-trips", () => {
   expect(registry.getModel("mock:one")).toBe(model);
 });
 
-test("listModels lists registered model ids", () => {
+test("listModels lists registered model ids and known provider prefixes", () => {
   const registry = createRegistry({ config: baseConfig(), getKey: noKey });
 
   registry.registerModel(mockModel("mock:one"));
   registry.registerModel(mockModel("mock:two"));
 
   expect(registry.listModels()).toEqual([
-    { id: "mock:one" },
-    { id: "mock:two" },
+    { id: "anthropic:<model-id>", source: "provider-prefix" },
+    { id: "mock:one", source: "registered" },
+    { id: "mock:two", source: "registered" },
   ]);
+});
+
+test("listModels returns fresh provider-prefix listings", () => {
+  const registry = createRegistry({ config: baseConfig(), getKey: noKey });
+  const [providerPrefix] = registry.listModels();
+  if (!providerPrefix) {
+    throw new Error("Expected a provider-prefix listing");
+  }
+
+  providerPrefix.id = "modified";
+
+  const otherRegistry = createRegistry({
+    config: baseConfig(),
+    getKey: noKey,
+  });
+  expect(registry.listModels()[0]?.id).toBe("anthropic:<model-id>");
+  expect(otherRegistry.listModels()[0]?.id).toBe("anthropic:<model-id>");
+});
+
+test("listAliases returns aliases from config", () => {
+  const aliases = { fast: "mock:swift", smart: "mock:pelican" };
+  const registry = createRegistry({
+    config: baseConfig({ aliases }),
+    getKey: noKey,
+  });
+
+  expect(registry.listAliases()).toEqual(aliases);
 });
 
 test("alias from config resolves to the registered model", () => {
@@ -77,11 +105,37 @@ test("alias from config resolves to the registered model", () => {
   expect(registry.getModel("short")).toBe(model);
 });
 
-test("unknown model id throws", () => {
+test("unknown model suggests case-insensitive substring matches", () => {
+  const registry = createRegistry({
+    config: baseConfig({ aliases: { PELICAN_FAST: "mock:swift" } }),
+    getKey: noKey,
+  });
+  registry.registerModel(mockModel("mock:Pelican"));
+
+  expect(() => registry.getModel("pelican")).toThrow(
+    "Unknown model 'pelican'. Did you mean: mock:Pelican, PELICAN_FAST?"
+  );
+});
+
+test("unknown model suggestions are capped at three", () => {
+  const registry = createRegistry({
+    config: baseConfig({ aliases: { "bird:four": "mock:four" } }),
+    getKey: noKey,
+  });
+  registry.registerModel(mockModel("bird:one"));
+  registry.registerModel(mockModel("bird:two"));
+  registry.registerModel(mockModel("bird:three"));
+
+  expect(() => registry.getModel("bird")).toThrow(
+    "Unknown model 'bird'. Did you mean: bird:one, bird:two, bird:three?"
+  );
+});
+
+test("unknown model without matches points to llx models", () => {
   const registry = createRegistry({ config: baseConfig(), getKey: noKey });
 
   expect(() => registry.getModel("nope:missing")).toThrow(
-    'Unknown model "nope:missing"'
+    "Unknown model 'nope:missing'. Run 'llx models' to see what's available."
   );
 });
 
