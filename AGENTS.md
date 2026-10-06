@@ -14,7 +14,7 @@ Uses the default label vocabulary (needs-triage, needs-info, ready-for-agent, re
 
 ### Domain docs
 
-Single-context layout: one CONTEXT.md + docs/adr/ at the repo root. Read `ROADMAP.md` before proposing work (stance and out-of-scope boundaries). See `docs/agents/domain.md`.
+Single-context layout: one `GLOSSARY.md` + `docs/adr/` at the repo root. Read `ROADMAP.md` before proposing work (stance and out-of-scope boundaries). See `docs/agents/domain.md`.
 
 ---
 

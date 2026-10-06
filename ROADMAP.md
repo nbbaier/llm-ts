@@ -4,7 +4,7 @@ Execution planning lives in the issue tracker: [#1 — Spec: llm-ts v1](https://
 
 ## Porting stance
 
-The Python `llm` repo is a **behavioral reference, not source material**. Port the domain model (see `CONTEXT.md`), don't translate `cli.py`. When behavior questions arise ("what exactly does `-c` resend?"), read the Python; never transliterate it.
+The Python `llm` repo is a **behavioral reference, not source material**. Port the domain model (see `GLOSSARY.md`), don't translate `cli.py`. When behavior questions arise ("what exactly does `-c` resend?"), read the Python; never transliterate it.
 
 The reference lives as a sibling checkout at `../llm` (fork of `simonw/llm`). Keep it through v1 — it's most needed for the parity-sensitive plans (#3 config/env precedence, #7 logs, #8 models & aliases, #9 plugin host). Once those land and llm-ts behaves as intended, the local copy can be deleted: it's a clean clone of `nbbaier/llm`, so removal loses nothing and it can be re-cloned if the `logs.db` import fast-follow ever needs the Python schema.
 
